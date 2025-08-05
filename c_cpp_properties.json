@@ -1,0 +1,5 @@
+"includePath": [
+    "${workspaceFolder}/**",
+    "C:/MinGW/include"
+],
+"compilerPath": "C:/MinGW/bin/gcc.exe"
