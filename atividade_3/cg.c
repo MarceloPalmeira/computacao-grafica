@@ -1,98 +1,133 @@
-//
-//  main.m
-//  TransformacaoPlanetas
-//
-//  Created by Marcelo Costa on 15/12/12.
-//  Copyright (c) 2012 Universidade Federal de Alagoas - UFAL. All rights reserved.
-//
-
-//#import <Cocoa/Cocoa.h>
-//#import <GLUT/GLUT.h>
-
-
-//#include <iostream>
 #include <GL/glut.h>
+#include <ctype.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <math.h>
 
-static int year = 0, day = 0;
+typedef struct {
+  GLfloat x, y, z;
+} Vec3;
 
-// Inicializa parâmetros de rendering
-void init(void){
-	glClearColor (0.0, 0.0, 0.0, 0.0);
+static float year = 0, day = 0;
+static bool animacao_ativa = false;
+static float vel_orbita = 0.02f;
+static float vel_rotacao = 0.05f;
+
+static void init(void) {
+  glClearColor(0, 0, 0, 0);
+  glEnable(GL_DEPTH_TEST);
 }
 
-// Função callback chamada para fazer o desenho
-void display(void){
-	glClear (GL_COLOR_BUFFER_BIT);
-	glColor3f (1.0, 1.0, 1.0);
-    
-	glPushMatrix();
-        glRotatef ((GLfloat) year, 1.0, 0.0, 0.0);
-        glRotatef ((GLfloat) day, 0.0, 0.0, 1.0);
-        glutWireSphere(1.0, 20, 16);   /* desenha o sol */
-	glPopMatrix();
-    
-	glPushMatrix();
-        glRotatef ((GLfloat) year, 0.0, 1.0, 0.0);
-        glTranslatef (2.0, 0.0, 0.0); //Translada a partir do novo sistema de coordenadas resultante da Rotacao
-        glRotatef ((GLfloat) day, 0.0, 1.0, 0.0);
-        glutWireSphere(0.2, 10, 8);    /* desenha um planeta */
-	glPopMatrix();
-
-	// Executa os comandos OpenGL
-    // glFlush();
-    
-	glutSwapBuffers(); //substitui o Flush quando usamos o GLUT_DOUBLE
+static void drawStar(void) {
+  glPushMatrix();
+    glRotatef((GLfloat)day, 0, 1, 0);
+    glRotatef(90, 1, 0, 0);
+    glutWireSphere(1, 20, 16); // Sol
+  glPopMatrix();
 }
 
-
-void reshape (int w, int h){
-	glViewport (0, 0, (GLsizei) w, (GLsizei) h);
-    
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-    
-	gluPerspective(60.0, (GLfloat) w/(GLfloat) h, 1.0, 20.0);
-	gluLookAt (0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0); //posicao da camera
-    
+static void drawPlanet(Vec3 pos, bool retrograde) {
+  glPushMatrix();
+    glRotatef((GLfloat)(retrograde ? -year : year), 0, 1, 0); 
+    glTranslatef(pos.x, pos.y, pos.z);
+    glRotatef((GLfloat)day, 0, 1, 0); 
+    glRotatef(90, 1, 0, 0);
+    glutWireSphere(0.25, 10, 8); 
+  glPopMatrix();
 }
 
-void keyboard (unsigned char key, int x, int y){
-	switch (key) {
-        case 'd':
-            day = (day + 10) % 360;  //% valor do resto
-            glutPostRedisplay(); //Redesenha a cena com novas coordenadas, é executado no glutMainLoop;
-            break;
-        case 'D':
-            day = (day - 10) % 360;
-            glutPostRedisplay();
-            break;
-        case 'y':
-            year = (year + 5) % 360;
-            glutPostRedisplay();
-            break;
-        case 'Y':
-            year = (year - 5) % 360;
-            glutPostRedisplay();
-            break;
-        default:
-            break;
-	}
+static void drawMoon(Vec3 primaryPos, bool primaryRetrograde, Vec3 pos, Vec3 tlAxis) {
+  glPushMatrix();
+    glRotatef((GLfloat)(primaryRetrograde ? -year : year), 0, 1, 0);
+    glTranslatef(primaryPos.x, primaryPos.y, primaryPos.z);
+
+    glRotatef((GLfloat)year, tlAxis.x, tlAxis.y, tlAxis.z);
+    glTranslatef(pos.x, pos.y, pos.z);
+
+    glutWireSphere(0.08, 10, 8);
+  glPopMatrix();
 }
 
-int main(int argc, char** argv){
-	
-    glutInit(&argc, argv);
-	glutInitDisplayMode (GLUT_DOUBLE | GLUT_RGB);
-	glutInitWindowSize(500, 500);
-	glutInitWindowPosition (100, 100);
-	glutCreateWindow("Rotacao de Planetas");
-	
-    init();
-	glutDisplayFunc(display); // Usada para (re)desenhar a cena
-	glutReshapeFunc(reshape); //Usar sempre que existe alteração no tamanho da Janela e ajuste da Viewport
-	glutKeyboardFunc(keyboard);
-	glutMainLoop();
+static void display(void) {
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-return 0;
+  glColor3f(1, 1, 0);
+  drawStar();
 
+  Vec3 planet1Pos = {.x = 1.8f, .y = 0.0f, .z = 0};
+  glColor3f(0.0f, 0.5f, 1.0f);
+  drawPlanet(planet1Pos, false);
+
+  Vec3 planet2Pos = {.x = 2.5f, .y = 0.0f, .z = 0};
+  glColor3f(1.0f, 0.3f, 0.0f);
+  drawPlanet(planet2Pos, true);
+
+  Vec3 moon1Pos = {.x = 0.5f, .y = 0.0f, .z = 0};
+  Vec3 moon1TlAxis = {.x = 1, .y = 0, .z = 0}; 
+  glColor3f(0.8f, 0.8f, 0.8f);
+  drawMoon(planet2Pos, true, moon1Pos, moon1TlAxis);
+
+  Vec3 moon2Pos = {.x = 0.7f, .y = 0.0f, .z = 0};
+  Vec3 moon2TlAxis = {.x = 0, .y = 0, .z = 1}; 
+  glColor3f(0.5f, 0.5f, 0.5f);
+  drawMoon(planet2Pos, true, moon2Pos, moon2TlAxis);
+
+  glutSwapBuffers();
+}
+
+static void handleReshape(int w, int h) {
+  glViewport(0, 0, w, h);
+
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  gluPerspective(60, (GLfloat)w / (GLfloat)h, 1, 20);
+
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
+  gluLookAt(0, 2, 6, 0, 0, 0, 0, 1, 0);
+}
+
+static void idle(void) {
+  if (animacao_ativa) {
+    year = fmod(year + vel_orbita, 360.0f);
+    day  = fmod(day  + vel_rotacao, 360.0f);
+    glutPostRedisplay();
+  }
+}
+
+static void handleKeyboard(unsigned char key, int x, int y) {
+  (void)x;
+  (void)y;
+
+  switch (key) {
+  case 'Y':
+  case 'y':
+    animacao_ativa = !animacao_ativa;
+    if (animacao_ativa)
+      glutIdleFunc(idle);
+    else
+      glutIdleFunc(NULL);
+    break;
+  case 27: 
+    exit(0);
+  default:
+    break;
+  }
+}
+
+int main(int argc, char *argv[]) {
+  glutInit(&argc, argv);
+
+  glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+  glutInitWindowSize(600, 600);
+  glutInitWindowPosition(100, 100);
+  glutCreateWindow("Translacao de Planetas e Luas");
+
+  init();
+  glutDisplayFunc(display);
+  glutReshapeFunc(handleReshape);
+  glutKeyboardFunc(handleKeyboard);
+
+  glutMainLoop();
+  return EXIT_SUCCESS;
 }
